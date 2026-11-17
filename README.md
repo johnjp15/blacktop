@@ -6,6 +6,53 @@ rounded corners beneath it.
 Use it to hide the notch on newer MacBooks, or because a black bar looks
 cleaner on any Mac.
 
+| Before | After |
+| --- | --- |
+| ![Menu bar before Blackbar](docs/before.png) | ![Menu bar after Blackbar, with rounded corners](docs/after.png) |
+
+## Quick start
+
+Requires macOS 14 or later.
+
+### Download
+
+1. Download `Blackbar.zip` from the
+   [latest release](https://github.com/johnjp15/blackbar/releases/latest) and
+   unzip it.
+2. Drag **Blackbar.app** into **Applications** and open it.
+3. macOS will block it the first time, with a message like *"Apple could not
+   verify Blackbar is free of malware."* This is expected: Blackbar isn't
+   notarized by Apple (that requires a paid developer account). To open it:
+   1. Click **Done** in the warning.
+   2. Open **System Settings → Privacy & Security** and scroll down to
+      **Security**.
+   3. Next to *"Blackbar was blocked to protect your Mac"*, click
+      **Open Anyway**, then confirm with your password or Touch ID.
+
+   You only need to do this once. If you prefer Terminal, this does the same:
+
+   ```sh
+   xattr -dr com.apple.quarantine /Applications/Blackbar.app
+   ```
+
+Your menu bar turns black right away. Look for the Blackbar icon in the menu
+bar to change settings.
+
+### Build from source
+
+Needs the Xcode Command Line Tools (full Xcode isn't needed). Apps you build
+yourself aren't blocked, so no **Open Anyway** step is required:
+
+```sh
+xcode-select --install   # if you don't have the Command Line Tools yet
+git clone https://github.com/johnjp15/blackbar.git
+cd blackbar
+./scripts/build-app.sh
+open build/Blackbar.app
+```
+
+To keep the app, drag `build/Blackbar.app` into `/Applications`.
+
 ## Features
 
 - **Black menu bar** with white text, on every display.
@@ -39,20 +86,16 @@ you quit Blackbar**, even across restarts. Keep the app running (or enable
 **Launch at Login**) if you want it to handle new wallpapers, displays, or
 Spaces automatically.
 
-## Install
+## Settings
 
-Blackbar is built from source. It requires macOS 14 or later and the Xcode
-Command Line Tools (full Xcode isn't needed):
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/settings-dark.png">
+  <img src="docs/settings-light.png" alt="Blackbar settings window" width="420">
+</picture>
 
-```sh
-xcode-select --install   # if you don't have the Command Line Tools yet
-git clone https://github.com/johnjp15/blackbar.git
-cd blackbar
-./scripts/build-app.sh
-open build/Blackbar.app
-```
-
-To keep it, drag `build/Blackbar.app` into `/Applications`.
+The settings window shows a live preview of the current settings. Open it from
+the menu bar icon (**Settings…**) or by opening the app again while it's
+running.
 
 ## Usage
 
@@ -66,8 +109,7 @@ Click the menu bar icon to open the menu:
 | **Refresh Wallpaper** (⌘R) | Re-apply to all screens now |
 | **Quit Blackbar** (⌘Q) | Quit (the black bar stays) |
 
-The settings window also has the corner radius slider and **Launch at Login**.
-Opening the app again while it's running brings up settings too.
+The settings window adds the corner radius slider and **Launch at Login**.
 
 ## Limitations
 
@@ -91,6 +133,7 @@ Opening the app again while it's running brings up settings too.
 swift build          # compile
 swift run            # run without bundling (Launch at Login won't work)
 ./scripts/build-app.sh   # build and ad-hoc sign build/Blackbar.app
+./build/Blackbar.app/Contents/MacOS/Blackbar --snapshot docs   # regenerate README images
 ```
 
 | File | Purpose |

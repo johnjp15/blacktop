@@ -39,6 +39,14 @@ final class WallpaperManager {
 
     var lastError: String?
 
+    /// Downscaled copy of the main screen's original wallpaper, for the settings preview.
+    var previewImage: NSImage?
+
+    /// Main screen's menu bar height in points, so the preview can draw to scale.
+    var mainMenuBarHeight: CGFloat {
+        NSScreen.main.map(menuBarHeight(for:)) ?? NSStatusBar.system.thickness
+    }
+
     @ObservationIgnored private let defaults = UserDefaults.standard
     @ObservationIgnored private let workspace = NSWorkspace.shared
     @ObservationIgnored private let outputDirectory: URL
@@ -46,6 +54,7 @@ final class WallpaperManager {
     @ObservationIgnored private var originals: [String: String]
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var pendingRefresh: Task<Void, Never>?
+    @ObservationIgnored private var previewSource: URL?
 
     private enum Keys {
         static let enabled = "enabled"
@@ -93,6 +102,25 @@ final class WallpaperManager {
             } catch {
                 lastError = "\(screen.localizedName): \(error.localizedDescription)"
             }
+        }
+        updatePreview()
+    }
+
+    private func updatePreview() {
+        guard let screen = NSScreen.main, let current = workspace.desktopImageURL(for: screen) else { return }
+        let original = originalURL(for: current)
+        guard original != previewSource else { return }
+        previewSource = original
+
+        let options = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 800,
+        ] as CFDictionary
+        if let source = CGImageSourceCreateWithURL(original as CFURL, nil),
+           let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options) {
+            previewImage = NSImage(cgImage: thumbnail, size: .zero)
+        } else {
+            previewImage = nil
         }
     }
 
