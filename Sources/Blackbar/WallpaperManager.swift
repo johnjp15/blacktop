@@ -1,6 +1,7 @@
 import AppKit
 import CryptoKit
 import ImageIO
+import Observation
 import UniformTypeIdentifiers
 
 /// Blackens the menu bar by swapping each screen's wallpaper for a copy with a
@@ -8,25 +9,48 @@ import UniformTypeIdentifiers
 /// desktop picture, so a black strip there makes the bar render black (and
 /// macOS switches the menu bar text to white automatically).
 @MainActor
+@Observable
 final class WallpaperManager {
     var isEnabled: Bool {
         didSet {
             defaults.set(isEnabled, forKey: Keys.enabled)
-            refresh()
+            scheduleRefresh()
         }
     }
 
+    /// Adds black rounded fillets below each end of the bar, covering the
+    /// wallpaper that peeks out beside windows' rounded top corners.
+    var roundCorners: Bool {
+        didSet {
+            defaults.set(roundCorners, forKey: Keys.roundCorners)
+            scheduleRefresh()
+        }
+    }
+
+    /// Fillet radius in points.
+    var cornerRadius: Double {
+        didSet {
+            defaults.set(cornerRadius, forKey: Keys.cornerRadius)
+            scheduleRefresh()
+        }
+    }
+
+    static let cornerRadiusRange = 4.0...40.0
+
     var lastError: String?
 
-    private let defaults = UserDefaults.standard
-    private let workspace = NSWorkspace.shared
-    private let outputDirectory: URL
+    @ObservationIgnored private let defaults = UserDefaults.standard
+    @ObservationIgnored private let workspace = NSWorkspace.shared
+    @ObservationIgnored private let outputDirectory: URL
     /// Maps a generated wallpaper's path to the original wallpaper it was made from.
-    private var originals: [String: String]
-    private var timer: Timer?
+    @ObservationIgnored private var originals: [String: String]
+    @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var pendingRefresh: Task<Void, Never>?
 
     private enum Keys {
         static let enabled = "enabled"
+        static let roundCorners = "roundCorners"
+        static let cornerRadius = "cornerRadius"
         static let originals = "originals"
     }
 
@@ -36,6 +60,8 @@ final class WallpaperManager {
         try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
         isEnabled = defaults.object(forKey: Keys.enabled) as? Bool ?? true
+        roundCorners = defaults.object(forKey: Keys.roundCorners) as? Bool ?? false
+        cornerRadius = defaults.object(forKey: Keys.cornerRadius) as? Double ?? 12
         originals = defaults.dictionary(forKey: Keys.originals) as? [String: String] ?? [:]
 
         observeChanges()
@@ -43,8 +69,19 @@ final class WallpaperManager {
 
     // MARK: - Applying
 
-    /// Brings every screen's current wallpaper in line with `isEnabled`.
+    /// Coalesces rapid setting changes (e.g. dragging a slider) into one refresh.
+    private func scheduleRefresh() {
+        pendingRefresh?.cancel()
+        pendingRefresh = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            refresh()
+        }
+    }
+
+    /// Brings every screen's current wallpaper in line with the settings.
     func refresh() {
+        pendingRefresh?.cancel()
         lastError = nil
         for screen in NSScreen.screens {
             do {
@@ -67,12 +104,13 @@ final class WallpaperManager {
         let scale = screen.backingScaleFactor
         let pixelSize = CGSize(width: screen.frame.width * scale, height: screen.frame.height * scale)
         let barPixels = (barHeight * scale).rounded(.up)
+        let cornerPixels = roundCorners ? (cornerRadius * scale).rounded() : 0
 
-        let output = outputURL(for: original, pixelSize: pixelSize, barPixels: barPixels)
+        let output = outputURL(for: original, pixelSize: pixelSize, barPixels: barPixels, cornerPixels: cornerPixels)
         if current.standardizedFileURL == output.standardizedFileURL { return }
 
         if !FileManager.default.fileExists(atPath: output.path) {
-            let image = try render(original, pixelSize: pixelSize, barPixels: barPixels)
+            let image = try render(original, pixelSize: pixelSize, barPixels: barPixels, cornerPixels: cornerPixels)
             try write(image, to: output)
         }
 
@@ -109,17 +147,17 @@ final class WallpaperManager {
         return reserved > 0 ? reserved : NSStatusBar.system.thickness
     }
 
-    private func outputURL(for original: URL, pixelSize: CGSize, barPixels: CGFloat) -> URL {
+    private func outputURL(for original: URL, pixelSize: CGSize, barPixels: CGFloat, cornerPixels: CGFloat) -> URL {
         let modified = (try? original.resourceValues(forKeys: [.contentModificationDateKey]))?
             .contentModificationDate?.timeIntervalSince1970 ?? 0
-        let key = "\(original.path)|\(modified)|\(Int(pixelSize.width))x\(Int(pixelSize.height))|\(Int(barPixels))"
+        let key = "\(original.path)|\(modified)|\(Int(pixelSize.width))x\(Int(pixelSize.height))|\(Int(barPixels))|\(Int(cornerPixels))"
         let digest = SHA256.hash(data: Data(key.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
         return outputDirectory.appendingPathComponent("\(original.deletingPathExtension().lastPathComponent)-\(digest).png")
     }
 
     // MARK: - Rendering
 
-    private func render(_ source: URL, pixelSize: CGSize, barPixels: CGFloat) throws -> CGImage {
+    private func render(_ source: URL, pixelSize: CGSize, barPixels: CGFloat, cornerPixels: CGFloat) throws -> CGImage {
         guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(imageSource, 0, nil)
         else { throw BlackbarError.unreadableWallpaper(source) }
@@ -150,7 +188,28 @@ final class WallpaperManager {
 
         // Core Graphics' origin is bottom-left, so the menu bar strip is at the top.
         context.setFillColor(CGColor(gray: 0, alpha: 1))
-        context.fill(CGRect(x: 0, y: pixelSize.height - barPixels, width: pixelSize.width, height: barPixels))
+        let barBottom = pixelSize.height - barPixels
+        context.fill(CGRect(x: 0, y: barBottom, width: pixelSize.width, height: barPixels))
+
+        // Concave fillets hanging below each end of the bar: the region between
+        // the screen corner and a quarter circle curving from bar to screen edge.
+        if cornerPixels > 0 {
+            let r = cornerPixels
+            let w = pixelSize.width
+            let fillets = CGMutablePath()
+            fillets.move(to: CGPoint(x: 0, y: barBottom))
+            fillets.addLine(to: CGPoint(x: r, y: barBottom))
+            fillets.addArc(center: CGPoint(x: r, y: barBottom - r), radius: r,
+                           startAngle: .pi / 2, endAngle: .pi, clockwise: false)
+            fillets.closeSubpath()
+            fillets.move(to: CGPoint(x: w, y: barBottom))
+            fillets.addLine(to: CGPoint(x: w - r, y: barBottom))
+            fillets.addArc(center: CGPoint(x: w - r, y: barBottom - r), radius: r,
+                           startAngle: .pi / 2, endAngle: 0, clockwise: true)
+            fillets.closeSubpath()
+            context.addPath(fillets)
+            context.fillPath()
+        }
 
         guard let result = context.makeImage() else { throw BlackbarError.renderFailed }
         return result

@@ -1,11 +1,13 @@
 import AppKit
-import ServiceManagement
+import SwiftUI
 
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let manager = WallpaperManager()
+    private let loginItem = LoginItem()
     private var statusItem: NSStatusItem!
+    private var settingsWindow: NSWindow?
 
     static func main() {
         let app = NSApplication.shared
@@ -24,6 +26,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         manager.refresh()
     }
 
+    // Opening the app again (e.g. from Finder or Spotlight) shows settings.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showSettings()
+        return false
+    }
+
     // Rebuild on open so checkmarks and errors are always current.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
@@ -31,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let toggle = NSMenuItem(title: "Black Menu Bar", action: #selector(toggleEnabled), keyEquivalent: "b")
         toggle.state = manager.isEnabled ? .on : .off
         menu.addItem(toggle)
+
+        let corners = NSMenuItem(title: "Rounded Corners", action: #selector(toggleRoundCorners), keyEquivalent: "")
+        corners.state = manager.roundCorners ? .on : .off
+        menu.addItem(corners)
 
         if let message = manager.lastError {
             let item = NSMenuItem(title: message, action: nil, keyEquivalent: "")
@@ -40,10 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
-        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        menu.addItem(login)
-
+        menu.addItem(NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Refresh Wallpaper", action: #selector(refresh), keyEquivalent: "r"))
 
         menu.addItem(.separator())
@@ -59,19 +68,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         manager.isEnabled.toggle()
     }
 
+    @objc private func toggleRoundCorners() {
+        manager.roundCorners.toggle()
+    }
+
     @objc private func refresh() {
         manager.refresh()
     }
 
-    @objc private func toggleLaunchAtLogin() {
-        do {
-            if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
-            }
-        } catch {
-            manager.lastError = "Launch at login: \(error.localizedDescription)"
+    @objc private func showSettings() {
+        if settingsWindow == nil {
+            let window = NSWindow(contentViewController: NSHostingController(
+                rootView: SettingsView(manager: manager, loginItem: loginItem)
+            ))
+            window.title = "Blackbar Settings"
+            window.styleMask = [.titled, .closable]
+            window.isReleasedWhenClosed = false
+            window.center()
+            settingsWindow = window
         }
+        NSApp.activate()
+        settingsWindow?.makeKeyAndOrderFront(nil)
     }
 }
