@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // `Blackbar --snapshot <dir>` writes README screenshots and exits.
+        // `Blacktop --snapshot <dir>` writes README screenshots and exits.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             writeSnapshots(to: URL(fileURLWithPath: args[i + 1], isDirectory: true))
@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "Blackbar")
+        statusItem.button?.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "Blacktop")
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -64,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        menu.addItem(NSMenuItem(title: "Quit Blackbar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit Blacktop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
         for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) {
             item.target = self
@@ -88,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let window = NSWindow(contentViewController: NSHostingController(
                 rootView: SettingsView(manager: manager, loginItem: loginItem)
             ))
-            window.title = "Blackbar Settings"
+            window.title = "Blacktop Settings"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.center()

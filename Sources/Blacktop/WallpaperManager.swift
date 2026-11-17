@@ -65,8 +65,19 @@ final class WallpaperManager {
 
     init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        outputDirectory = support.appendingPathComponent("Blackbar/Wallpapers", isDirectory: true)
+        outputDirectory = support.appendingPathComponent("Blacktop/Wallpapers", isDirectory: true)
         try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+
+        // v0.1.0 shipped as "Blackbar". Carry over its settings and its record of
+        // original wallpapers, so turning Blacktop off still restores them.
+        if defaults.object(forKey: Keys.originals) == nil,
+           let legacy = UserDefaults(suiteName: "com.johnjp15.Blackbar") {
+            for key in [Keys.enabled, Keys.roundCorners, Keys.cornerRadius, Keys.originals] {
+                if let value = legacy.object(forKey: key) {
+                    defaults.set(value, forKey: key)
+                }
+            }
+        }
 
         isEnabled = defaults.object(forKey: Keys.enabled) as? Bool ?? true
         roundCorners = defaults.object(forKey: Keys.roundCorners) as? Bool ?? false
@@ -188,7 +199,7 @@ final class WallpaperManager {
     private func render(_ source: URL, pixelSize: CGSize, barPixels: CGFloat, cornerPixels: CGFloat) throws -> CGImage {
         guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(imageSource, 0, nil)
-        else { throw BlackbarError.unreadableWallpaper(source) }
+        else { throw BlacktopError.unreadableWallpaper(source) }
 
         guard let context = CGContext(
             data: nil,
@@ -198,7 +209,7 @@ final class WallpaperManager {
             bytesPerRow: 0,
             space: image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { throw BlackbarError.renderFailed }
+        ) else { throw BlacktopError.renderFailed }
 
         context.interpolationQuality = .high
 
@@ -239,15 +250,15 @@ final class WallpaperManager {
             context.fillPath()
         }
 
-        guard let result = context.makeImage() else { throw BlackbarError.renderFailed }
+        guard let result = context.makeImage() else { throw BlacktopError.renderFailed }
         return result
     }
 
     private func write(_ image: CGImage, to url: URL) throws {
         guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)
-        else { throw BlackbarError.renderFailed }
+        else { throw BlacktopError.renderFailed }
         CGImageDestinationAddImage(destination, image, nil)
-        guard CGImageDestinationFinalize(destination) else { throw BlackbarError.renderFailed }
+        guard CGImageDestinationFinalize(destination) else { throw BlacktopError.renderFailed }
     }
 
     // MARK: - Observing
@@ -275,7 +286,7 @@ final class WallpaperManager {
     }
 }
 
-enum BlackbarError: LocalizedError {
+enum BlacktopError: LocalizedError {
     case unreadableWallpaper(URL)
     case renderFailed
 

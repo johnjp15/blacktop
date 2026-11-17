@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "Blackbar",
+    name: "Blacktop",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "Blackbar",
-            path: "Sources/Blackbar"
+            name: "Blacktop",
+            path: "Sources/Blacktop"
         )
     ]
 )

@@ -37,7 +37,7 @@ head.close()
 NSColor(white: 0.55, alpha: 1).setFill()
 head.fill()
 
-let text = "Drag Blackbar to Applications to install" as NSString
+let text = "Drag Blacktop to Applications to install" as NSString
 let attributes: [NSAttributedString.Key: Any] = [
     .font: NSFont.systemFont(ofSize: 15, weight: .medium),
     .foregroundColor: NSColor(white: 0.35, alpha: 1),

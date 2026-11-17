@@ -1,18 +1,19 @@
 #!/bin/bash
-# Builds Blackbar.app into ./build. Works with just the Xcode Command Line Tools.
+# Builds Blacktop.app into ./build. Works with just the Xcode Command Line Tools.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-APP="build/Blackbar.app"
+APP="build/Blacktop.app"
 VERSION="${VERSION:-0.1.0}"
 
 swift build -c release --arch arm64
-BIN="$(swift build -c release --arch arm64 --show-bin-path)/Blackbar"
+BIN="$(swift build -c release --arch arm64 --show-bin-path)/Blacktop"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/Blackbar"
+cp "$BIN" "$APP/Contents/MacOS/Blacktop"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -20,11 +21,13 @@ cat > "$APP/Contents/Info.plist" <<EOF
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>Blackbar</string>
+    <string>Blacktop</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
-    <string>com.johnjp15.Blackbar</string>
+    <string>com.johnjp15.Blacktop</string>
     <key>CFBundleName</key>
-    <string>Blackbar</string>
+    <string>Blacktop</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
