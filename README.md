@@ -16,10 +16,12 @@ Requires macOS 14 or later.
 
 ### Download
 
-1. Download `Blackbar.zip` from the
-   [latest release](https://github.com/johnjp15/blackbar/releases/latest) and
-   unzip it.
-2. Drag **Blackbar.app** into **Applications** and open it.
+1. Download
+   [**Blackbar.dmg**](https://github.com/johnjp15/blackbar/releases/latest/download/Blackbar.dmg)
+   from the [latest release](https://github.com/johnjp15/blackbar/releases/latest)
+   and open it.
+2. Drag **Blackbar** onto the **Applications** folder, then open it from
+   Applications.
 3. macOS will block it the first time, with a message like *"Apple could not
    verify Blackbar is free of malware."* This is expected: Blackbar isn't
    notarized by Apple (that requires a paid developer account). To open it:
@@ -133,6 +135,7 @@ The settings window adds the corner radius slider and **Launch at Login**.
 swift build          # compile
 swift run            # run without bundling (Launch at Login won't work)
 ./scripts/build-app.sh   # build and ad-hoc sign build/Blackbar.app
+./scripts/make-dmg.sh    # package build/Blackbar.dmg for releases
 ./build/Blackbar.app/Contents/MacOS/Blackbar --snapshot docs   # regenerate README images
 ```
 
@@ -142,3 +145,4 @@ swift run            # run without bundling (Launch at Login won't work)
 | `Sources/Blackbar/BlackbarApp.swift` | App entry point and menu bar menu |
 | `Sources/Blackbar/SettingsView.swift` | Settings window (SwiftUI) |
 | `scripts/build-app.sh` | Builds the `.app` bundle with `Info.plist` and signing |
+| `scripts/make-dmg.sh` | Packages the app into a drag-to-install disk image |
